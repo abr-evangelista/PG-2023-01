@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite App</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/main.js"></script>
+    <!--Abaixo, definimos o vertex shader e alguns variaveis.
+      --Algumas das variaveis definidas sao padroes dos shaders, porem o uso de rawshadermaterial
+      --requer a declaracao explicita destes para seu uso em codigo.-->
+    <script id="vertexShader" type="x-shader/x-vertex">
+      attribute vec3 position;
+      attribute vec3 normal;
+      attribute vec2 uv;
+
+      uniform mat4 modelViewMatrix;                                                                                                                                                                                                  
+      uniform mat4 projectionMatrix;
+      uniform mat4 modelMatrix;
+      uniform mat4 viewMatrix;
+      uniform mat3 normalMatrix;
+      uniform vec3 cameraPosition;
+
+      varying highp vec3 pos;
+
+      void main() {
+        pos = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+      }
+    </script>
+    <!--Abaixo, uma pequena funcao para definicao de cores nos fragmentos do objeto muda cores de acordo com a posicao dos fragmentos,
+      --mostrando a paleta RGB.-->
+    <script id="fragmentShader" type="x-shader/x-fragment">
+      varying highp vec3 pos;
+
+      void main() {
+          gl_FragColor = vec4(pos[0] / 2.0, pos[1] / 2.0, pos[2] / 2.0, 256);
+      }
+    </script>
+  </body>
+</html>

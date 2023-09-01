@@ -1,74 +1,118 @@
-// Variables to store scene, cameras, and objects
-let scene, camera1, camera2, renderer, cube, sphere;
+import * as THREE from 'three'; //carrega a biblioteca
 
-// Variables for simple movement
-let cubeRotationSpeed = 0.02;
+import { GLTFLoader } from './node_modules/three/examples/jsm/loaders/GLTFLoader.js';
 
-// Initialize the scene
-function init() {
-    // Create a scene
-    scene = new THREE.Scene();
+const FOV1 = 80, PROPORCAO_TELA = window.innerWidth/window.innerHeight; //Valores para camera
 
-    // Create a perspective camera
-    camera1 = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera1.position.z = 5;
+//Abaixo, temos a definicao de duas cameras, de acordo com a especificacao do projeto. A relacao entre as cameras 1 e 2 esta explicada no
+// readme do projeto.
+const cena = new THREE.Scene();
+const camera1 = new THREE.PerspectiveCamera(FOV1, PROPORCAO_TELA, 0.1, 1000);
+camera1.position.setZ(9);
 
-    // Create an orthographic camera
-    const aspectRatio = window.innerWidth / window.innerHeight;
-    const frustumSize = 2;
-    camera2 = new THREE.OrthographicCamera(-frustumSize * aspectRatio, frustumSize * aspectRatio, frustumSize, -frustumSize, 1, 100);
-    camera2.position.set(0, 0, 5);
+const camera2 = new THREE.PerspectiveCamera(FOV1, PROPORCAO_TELA, 0.1, 1000);
+camera2.position.setZ(9);
+camera2.rotateZ(Math.PI / 4);
 
-    // Create a WebGL renderer
-    renderer = new THREE.WebGLRenderer();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.getElementById('scene-container').appendChild(renderer.domElement);
+//definicao da iluminacao do ambiente abaixo.
+var keyLight = new THREE.DirectionalLight(new THREE.Color('hsl(30, 100%, 75%)'), 1.0);
+keyLight.position.set(-100, 0, 100);
+var fillLight = new THREE.DirectionalLight(new THREE.Color('hsl(240, 100%, 75%)'), 0.75);
+fillLight.position.set(100, 0, 100);
+var backLight = new THREE.DirectionalLight(0xffffff, 1.0);
+backLight.position.set(100, 0, -100).normalize();
 
-    // Create a cube
-    const cubeGeometry = new THREE.BoxGeometry();
-    const cubeMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-    cube.position.x = -2;
-    scene.add(cube);
+//adicao de iluminacao para cena principal
+cena.add(keyLight);
+cena.add(fillLight);
+cena.add(backLight);
 
-    // Create a sphere
-    const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
-    const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    sphere.position.x = 2;
-    scene.add(sphere);
+//abaixo, o canvas do renderer é criado e inserido no body da página html 
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Ambos os modelos utilizados no projeto (um modelo para cada membro, como pedido na especificacao) serao carregados
+// abaixo pelo mesmo tipo de loader, para arquivos gltf.
+const loader = new GLTFLoader();
+let anjo, tardis;
+
+// aqui referenciamos os shaders criados no arquivo html para a criacao de um rawshadermaterial, feito de
+// forma manual.
+const material = new THREE.RawShaderMaterial( {
+
+	vertexShader: document.getElementById( 'vertexShader' ).textContent,
+	fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+
+} );
+
+
+// Carregando objeto do anjo
+loader.load('./orthodox_angel_statue_scan/scene.gltf', (obj) => {
+  anjo = obj;
+
+  // referenciamos o modelo do anjo para poder acessar os seus materiais e substituir pelo criado manualmente.
+  // isso eh feito pela funcao traverse, que roda todos os mesh do modelo.
+  const model = obj.scene;
+  model.traverse((o) => {
+    if (o.isMesh) o.material = material; // material criado manualmente
+  });
+
+  obj.scene.position.y = -2;
+  obj.scene.position.x = -0.05;
+  obj.scene.position.z = 0;
+  obj.scene.scale.set(1.5,1.5,1.5);
+
+  cena.add(obj.scene);
+});
+
+// Carregando objeto da TARDIS. O shader eh aplicado apenas no objeto do anjo (a especificacao pede apenas por um objeto modificado,
+// entao preferimos manter a TARDIS original como referencia de movimento na cena).
+loader.load('./tardis/scene.gltf', (obj) => {
+  tardis = obj;
+  obj.scene.position.x = -28;
+  obj.scene.position.z = -15;
+  obj.scene.rotation.y = -1;
+
+  obj.scene.scale.set(2,3,2);
+
+  cena.add(obj.scene);
+});
+
+
+
+// Animação de movimento do anjo descrita abaixo. lore-accurate
+let andar, id_animacao;
+
+//  Movimentacao descrita sem as limitacoes de visualizacao.
+const animate = () => {
+  
+  if(anjo){
+    if(anjo.scene.position.z >= 8){
+      console.log();
+      
+      renderer.render(cena, camera2);
+    }
+    else{
+      anjo.scene.position.z += 1.2 * andar;
+      renderer.render(cena, camera1);
+
+    }
+  }
+    
+  id_animacao = requestAnimationFrame(animate); 
 }
 
-// Animate the cube
-function animate() {
-    requestAnimationFrame(animate);
-
-    // Rotate the cube
-    cube.rotation.x += cubeRotationSpeed;
-    cube.rotation.y += cubeRotationSpeed;
-
-    // Render the scene
-    renderer.render(scene, camera1);
-}
-
-// Handle window resize
-function onWindowResize() {
-    const newWidth = window.innerWidth;
-    const newHeight = window.innerHeight;
-
-    camera1.aspect = newWidth / newHeight;
-    camera1.updateProjectionMatrix();
-
-    camera2.left = -2 * newWidth / newHeight;
-    camera2.right = 2 * newWidth / newHeight;
-    camera2.top = 2;
-    camera2.bottom = -2;
-    camera2.updateProjectionMatrix();
-
-    renderer.setSize(newWidth, newHeight);
-}
-
-// Initialize the scene, animate, and handle resize
-init();
 animate();
-window.addEventListener('resize', onWindowResize);
+
+// Abaixo eh definida a limitacao de visualizacao. Se a pagina estiver escondida, o anjo se move em direcao ao visualizador.
+document.addEventListener("visibilitychange", () => {
+  if(document.hidden){
+    andar = 1; 
+    animate(); 
+  } 
+  else{
+    andar = 0; 
+  }
+  
+});
